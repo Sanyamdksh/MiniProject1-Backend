@@ -5,17 +5,43 @@ const postModel = require("./models/post");
 const cookieParser = require("cookie-parser");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const path = require("path");
+const multer = require("multer");
 
 app.set("view engine", "ejs");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "./public/images/uploads");
+  },
+  filename: function (req, file, cb) {
+    crypto.randomBytes(12, (err, bytes) => {
+      const fn = bytes.toString("hex") + path.extname(file.originalname);
+      cb(null, fn);
+    });
+  },
+});
+
+const upload = multer({ storage: storage });
+
 app.get("/", (req, res) => {
   res.render("index");
 });
+
 app.get("/login", (req, res) => {
   res.render("login");
+});
+
+app.get("/test", (req, res) => {
+  res.render("test");
+});
+
+app.post("/upload", upload.single("image"), (req, res) => {
+  console.log(req.file);
 });
 
 app.post("/register", async (req, res) => {
@@ -60,12 +86,12 @@ app.get("/logout", (req, res) => {
 });
 
 app.get("/like/:id", isLoggedIn, async (req, res) => {
-  let post = await postModel.findOne({ _id: req.params.id }).populate("user");
+  let post = await postModel.findOne({ _id: req.params.id });
 
   if (post.likes.indexOf(req.user.userid) === -1) {
     post.likes.push(req.user.userid);
   } else {
-    post.likes.splice(post.likes.indexOf(req.user.userid), 1);
+    post.likes.splice(post.likes.indexOf(req.user.userid), 1); // decrease likes by 1
   }
 
   await post.save();
